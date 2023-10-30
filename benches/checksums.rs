@@ -1,7 +1,4 @@
-use blake2::{
-    digest::{typenum::U4, Digest},
-    Blake2b,
-};
+use blake2::digest::{typenum::U4, Digest};
 
 fn main() {
     // Run registered benchmarks.
@@ -30,11 +27,23 @@ fn adler<const N: usize>() -> u32 {
 }
 
 #[divan::bench(consts = SIZES)]
-fn blake2<const N: usize>() -> u32 {
-    let res = Blake2b::<U4>::new()
-        .chain_update(&divan::black_box(LARGE_PAGE)[..N])
-        .finalize();
-    u32::from_ne_bytes(res.into())
+fn blake2b_32<const N: usize>() -> u32 {
+    crypto::<blake2::Blake2b<U4>, N>()
+}
+
+#[divan::bench(consts = SIZES)]
+fn blake2b_512<const N: usize>() -> u32 {
+    crypto::<blake2::Blake2b512, N>()
+}
+
+#[divan::bench(consts = SIZES)]
+fn blake2s_32<const N: usize>() -> u32 {
+    crypto::<blake2::Blake2s<U4>, N>()
+}
+
+#[divan::bench(consts = SIZES)]
+fn blake2s_256<const N: usize>() -> u32 {
+    crypto::<blake2::Blake2s256, N>()
 }
 
 #[divan::bench(consts = SIZES)]
@@ -45,15 +54,16 @@ fn blake3<const N: usize>() -> u32 {
 
 #[divan::bench(consts = SIZES)]
 fn sha1<const N: usize>() -> u32 {
-    let res = sha1::Sha1::new()
-        .chain_update(&divan::black_box(LARGE_PAGE)[..N])
-        .finalize();
-    u32::from_ne_bytes(res[0..4].try_into().unwrap())
+    crypto::<sha1::Sha1, N>()
 }
 
 #[divan::bench(consts = SIZES)]
 fn sha256<const N: usize>() -> u32 {
-    let res = sha2::Sha256::new()
+    crypto::<sha2::Sha256, N>()
+}
+
+fn crypto<D: Digest, const N: usize>() -> u32 {
+    let res = D::new()
         .chain_update(&divan::black_box(LARGE_PAGE)[..N])
         .finalize();
     u32::from_ne_bytes(res[0..4].try_into().unwrap())
