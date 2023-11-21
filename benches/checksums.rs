@@ -1,6 +1,3 @@
-use blake2::digest::{typenum::U4, Digest};
-use divan::{counter::BytesCount, Bencher};
-
 fn main() {
     // Run registered benchmarks.
     divan::main();
@@ -17,73 +14,60 @@ const LARGE_PAGE: &[u8; 1 << 20] = &{
     page
 };
 
-#[divan::bench(consts = SIZES)]
-fn crc<const N: usize>(bencher: Bencher) {
-    bencher
-        .counter(BytesCount::new(N))
-        .bench(|| crc32fast::hash(&divan::black_box(LARGE_PAGE)[..N]))
+macro_rules! bench {
+    ($($func_name:ident => $func:expr;)*) => {
+        $(
+            #[divan::bench(consts = crate::SIZES)]
+            fn $func_name<const N: usize>(bencher: divan::Bencher) {
+                bencher
+                    .counter(divan::counter::BytesCount::new(N))
+                    .bench(|| ($func)(&divan::black_box(crate::LARGE_PAGE)[..N]))
+            }
+        )*
+    };
 }
 
-#[divan::bench(consts = SIZES)]
-fn adler<const N: usize>(bencher: Bencher) {
-    bencher
-        .counter(BytesCount::new(N))
-        .bench(|| adler::adler32_slice(&divan::black_box(LARGE_PAGE)[..N]))
+#[divan::bench_group]
+mod non_crypto {
+    bench! {
+        crc => crc32fast::hash;
+        adler => adler::adler32_slice;
+    }
 }
 
-#[divan::bench(consts = SIZES)]
-fn blake2b_32<const N: usize>(bencher: Bencher) {
-    bencher
-        .counter(BytesCount::new(N))
-        .bench(|| crypto::<blake2::Blake2b<U4>, N>())
-}
+#[divan::bench_group]
+mod crypto {
+    #[divan::bench_group]
+    mod sha {
+        use super::crypto;
 
-#[divan::bench(consts = SIZES)]
-fn blake2b_512<const N: usize>(bencher: Bencher) {
-    bencher
-        .counter(BytesCount::new(N))
-        .bench(|| crypto::<blake2::Blake2b512, N>())
-}
+        bench! {
+            sha1 => crypto::<sha1::Sha1>;
+            sha256 => crypto::<sha2::Sha256>;
+        }
+    }
 
-#[divan::bench(consts = SIZES)]
-fn blake2s_32<const N: usize>(bencher: Bencher) {
-    bencher
-        .counter(BytesCount::new(N))
-        .bench(|| crypto::<blake2::Blake2s<U4>, N>())
-}
+    #[divan::bench_group]
+    mod blake {
+        use super::crypto;
+        use blake2::digest::typenum::U4;
 
-#[divan::bench(consts = SIZES)]
-fn blake2s_256<const N: usize>(bencher: Bencher) {
-    bencher
-        .counter(BytesCount::new(N))
-        .bench(|| crypto::<blake2::Blake2s256, N>())
-}
+        bench! {
+            blake2b_32 => crypto::<blake2::Blake2b<U4>>;
+            blake2b_512 => crypto::<blake2::Blake2b512>;
+            blake2s_32 => crypto::<blake2::Blake2s<U4>>;
+            blake2s_256 => crypto::<blake2::Blake2s256>;
+            blake3 => blake3_impl;
+        }
 
-#[divan::bench(consts = SIZES)]
-fn blake3<const N: usize>(bencher: Bencher) {
-    bencher.counter(BytesCount::new(N)).bench(|| {
-        let res = blake3::hash(&divan::black_box(LARGE_PAGE)[..N]);
-        u32::from_ne_bytes(res.as_bytes()[0..4].try_into().unwrap())
-    })
-}
+        fn blake3_impl(page: &[u8]) -> u32 {
+            let res = blake3::hash(page);
+            u32::from_ne_bytes(res.as_bytes()[0..4].try_into().unwrap())
+        }
+    }
 
-#[divan::bench(consts = SIZES)]
-fn sha1<const N: usize>(bencher: Bencher) {
-    bencher
-        .counter(BytesCount::new(N))
-        .bench(|| crypto::<sha1::Sha1, N>())
-}
-
-#[divan::bench(consts = SIZES)]
-fn sha256<const N: usize>(bencher: Bencher) {
-    bencher
-        .counter(BytesCount::new(N))
-        .bench(|| crypto::<sha2::Sha256, N>())
-}
-
-fn crypto<D: Digest, const N: usize>() -> u32 {
-    let res = D::new()
-        .chain_update(&divan::black_box(LARGE_PAGE)[..N])
-        .finalize();
-    u32::from_ne_bytes(res[0..4].try_into().unwrap())
+    fn crypto<D: blake2::digest::Digest>(page: &[u8]) -> u32 {
+        let res = D::new().chain_update(page).finalize();
+        u32::from_ne_bytes(res[0..4].try_into().unwrap())
+    }
 }
