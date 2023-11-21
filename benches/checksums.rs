@@ -38,12 +38,25 @@ mod non_crypto {
 #[divan::bench_group]
 mod crypto {
     #[divan::bench_group]
+    mod md {
+        bench! {
+            md5 => md5_impl;
+        }
+
+        fn md5_impl(page: &[u8]) -> u32 {
+            let res = md5::compute(page);
+            u32::from_ne_bytes(res.0[0..4].try_into().unwrap())
+        }
+    }
+
+    #[divan::bench_group]
     mod sha {
         use super::crypto;
 
         bench! {
             sha1 => crypto::<sha1::Sha1>;
-            sha256 => crypto::<sha2::Sha256>;
+            sha2_256 => crypto::<sha2::Sha256>;
+            sha3_256 => crypto::<sha3::Sha3_256>;
         }
     }
 
@@ -57,11 +70,17 @@ mod crypto {
             blake2b_512 => crypto::<blake2::Blake2b512>;
             blake2s_32 => crypto::<blake2::Blake2s<U4>>;
             blake2s_256 => crypto::<blake2::Blake2s256>;
+            blake3_mt => blake3_mt_impl;
             blake3 => blake3_impl;
         }
 
+        fn blake3_mt_impl(page: &[u8]) -> u32 {
+            let res = blake3::Hasher::new().update_rayon(page).finalize();
+            u32::from_ne_bytes(res.as_bytes()[0..4].try_into().unwrap())
+        }
+
         fn blake3_impl(page: &[u8]) -> u32 {
-            let res = blake3::hash(page);
+            let res = blake3::Hasher::new().update(page).finalize();
             u32::from_ne_bytes(res.as_bytes()[0..4].try_into().unwrap())
         }
     }
