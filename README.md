@@ -16,8 +16,25 @@ RUSTFLAGS="-C target-cpu=native" DIVAN_SAMPLE_COUNT=10000 cargo +nightly bench
 
 I've tried to use the most efficient checksum/hash function implementation in each case.
 
-* sha1/sha2 will try to use hardware acceleration.
-* blake3_mt will use rayon for parallelism
+* `sha1`/`sha2_*` will try to use hardware acceleration.
+* `blake3_mt` will use rayon for parallelism
+
+## Benchmark setup
+
+The checksum algorithms are benchmarked on pages of size 4KiB, 16KiB, 64KiB and 1MiB.
+
+> Note: The larger the page size and the smaller the checksum output, the more greater the chance of collisions. I would advice against using a 32bit checksum on >16KiB inputs.
+
+> Note: Some of these checksums are not cryptographically secure.
+
+## Summary
+
+* If you are checksumming large pages and/or need cryptographic security, I would highly recommend `blake3`.
+* If you are checksumming small pages and **don't** need cryptographic security, `crc32` or `adler32` work well.
+
+**This benchmark makes no claims over checksum integrety**. I would advise you do your own research here.
+
+**This benchmark makes no claims over cryptographic security**. I would advise you do your own research here. However, my opinion on the research is that blake3, sha2, and sha3 are all cryptographically secure still. Blake3 is the most modern and it seems to be the most secure, but more analysis is required.
 
 ## Results
 
@@ -177,6 +194,166 @@ checksums            fastest       │ slowest       │ median        │ mean 
       │              8.886 GB/s    │ 1.906 GB/s    │ 8.738 GB/s    │ 8.511 GB/s    │         │
       ╰─ 1048576     119.5 µs      │ 156.7 µs      │ 119.7 µs      │ 120.4 µs      │ 10000   │ 10000
                      8.768 GB/s    │ 6.687 GB/s    │ 8.759 GB/s    │ 8.702 GB/s    │         │
+```
+
+</details>
+
+### AMD Ryzen 7 2700X Eight-Core Processor (x86_64-unknown-linux-gnu)
+
+```
+crc32     - 16.3 GB/s
+blake3_mt - 11.1 GB/s
+adler     - 4.68 GB/s
+blake3    - 2.70 GB/s
+sha2_256  - 2.04 GB/s
+sha1      - 1.91 GB/s
+blake2b   -  921 MB/s
+blake2s   -  642 MB/s
+md5       -  553 MB/s
+sha2_512  -  511 MB/s
+sha2_384  -  511 MB/s
+sha3_256  -  462 MB/s
+sha3_384  -  353 MB/s
+sha3_512  -  244 MB/s
+```
+
+<details>
+<summary>Expand full test info</summary>
+
+```
+Timer precision: 3.26 µs
+checksums            fastest       │ slowest       │ median        │ mean          │ samples │ iters
+├─ crypto                          │               │               │               │         │
+│  ├─ blake                        │               │               │               │         │
+│  │  ├─ blake2b                   │               │               │               │         │
+│  │  │  ├─ 4096     4.404 µs      │ 8.316 µs      │ 4.48 µs       │ 4.537 µs      │ 10000   │ 1280000
+│  │  │  │           929.9 MB/s    │ 492.5 MB/s    │ 914.1 MB/s    │ 902.7 MB/s    │         │
+│  │  │  ├─ 16384    17.45 µs      │ 25.18 µs      │ 17.67 µs      │ 17.83 µs      │ 10000   │ 320000
+│  │  │  │           938.6 MB/s    │ 650.5 MB/s    │ 926.9 MB/s    │ 918.8 MB/s    │         │
+│  │  │  ├─ 65536    69.83 µs      │ 101.9 µs      │ 70.78 µs      │ 71.33 µs      │ 10000   │ 80000
+│  │  │  │           938.4 MB/s    │ 642.8 MB/s    │ 925.7 MB/s    │ 918.7 MB/s    │         │
+│  │  │  ╰─ 1048576  1.114 ms      │ 2.24 ms       │ 1.129 ms      │ 1.137 ms      │ 10000   │ 10000
+│  │  │              941.1 MB/s    │ 468 MB/s      │ 928.2 MB/s    │ 921.9 MB/s    │         │
+│  │  ├─ blake2s                   │               │               │               │         │
+│  │  │  ├─ 4096     6.213 µs      │ 12.53 µs      │ 6.334 µs      │ 6.391 µs      │ 10000   │ 640000
+│  │  │  │           659.1 MB/s    │ 326.8 MB/s    │ 646.6 MB/s    │ 640.8 MB/s    │         │
+│  │  │  ├─ 16384    24.93 µs      │ 62.03 µs      │ 25.4 µs       │ 25.59 µs      │ 10000   │ 160000
+│  │  │  │           657 MB/s      │ 264.1 MB/s    │ 645 MB/s      │ 640.2 MB/s    │         │
+│  │  │  ├─ 65536    100 µs        │ 212.3 µs      │ 101.5 µs      │ 102.6 µs      │ 10000   │ 40000
+│  │  │  │           654.8 MB/s    │ 308.6 MB/s    │ 645.3 MB/s    │ 638.2 MB/s    │         │
+│  │  │  ╰─ 1048576  1.596 ms      │ 2.15 ms       │ 1.633 ms      │ 1.632 ms      │ 10000   │ 10000
+│  │  │              656.8 MB/s    │ 487.5 MB/s    │ 641.9 MB/s    │ 642.1 MB/s    │         │
+│  │  ├─ blake3                    │               │               │               │         │
+│  │  │  ├─ 4096     2.268 µs      │ 3.852 µs      │ 2.304 µs      │ 2.323 µs      │ 10000   │ 2560000
+│  │  │  │           1.805 GB/s    │ 1.063 GB/s    │ 1.777 GB/s    │ 1.763 GB/s    │         │
+│  │  │  ├─ 16384    5.954 µs      │ 6.787 µs      │ 6.047 µs      │ 6.106 µs      │ 10000   │ 640000
+│  │  │  │           2.751 GB/s    │ 2.413 GB/s    │ 2.709 GB/s    │ 2.682 GB/s    │         │
+│  │  │  ├─ 65536    23.55 µs      │ 45.39 µs      │ 23.86 µs      │ 24.14 µs      │ 10000   │ 160000
+│  │  │  │           2.782 GB/s    │ 1.443 GB/s    │ 2.745 GB/s    │ 2.714 GB/s    │         │
+│  │  │  ╰─ 1048576  376.8 µs      │ 869.3 µs      │ 382.8 µs      │ 388.3 µs      │ 10000   │ 10000
+│  │  │              2.782 GB/s    │ 1.206 GB/s    │ 2.739 GB/s    │ 2.699 GB/s    │         │
+│  │  ╰─ blake3_mt                 │               │               │               │         │
+│  │     ├─ 4096     2.266 µs      │ 3.907 µs      │ 2.302 µs      │ 2.323 µs      │ 10000   │ 2560000
+│  │     │           1.807 GB/s    │ 1.048 GB/s    │ 1.778 GB/s    │ 1.762 GB/s    │         │
+│  │     ├─ 16384    10.9 µs       │ 1.401 ms      │ 63.22 µs      │ 65.01 µs      │ 10000   │ 10000
+│  │     │           1.501 GB/s    │ 11.69 MB/s    │ 259.1 MB/s    │ 252 MB/s      │         │
+│  │     ├─ 65536    17.87 µs      │ 583.4 µs      │ 140.3 µs      │ 134.6 µs      │ 10000   │ 20000
+│  │     │           3.665 GB/s    │ 112.3 MB/s    │ 466.7 MB/s    │ 486.6 MB/s    │         │
+│  │     ╰─ 1048576  76.29 µs      │ 693.5 µs      │ 84.62 µs      │ 94.19 µs      │ 10000   │ 40000
+│  │                 13.74 GB/s    │ 1.511 GB/s    │ 12.39 GB/s    │ 11.13 GB/s    │         │
+│  ├─ md                           │               │               │               │         │
+│  │  ╰─ md5                       │               │               │               │         │
+│  │     ├─ 4096     7.402 µs      │ 12.17 µs      │ 7.536 µs      │ 7.633 µs      │ 10000   │ 640000
+│  │     │           553.3 MB/s    │ 336.5 MB/s    │ 543.5 MB/s    │ 536.6 MB/s    │         │
+│  │     ├─ 16384    29.22 µs      │ 46.76 µs      │ 29.67 µs      │ 29.95 µs      │ 10000   │ 160000
+│  │     │           560.5 MB/s    │ 350.3 MB/s    │ 552.1 MB/s    │ 546.9 MB/s    │         │
+│  │     ├─ 65536    116.7 µs      │ 192.7 µs      │ 117.7 µs      │ 119.2 µs      │ 10000   │ 40000
+│  │     │           561.2 MB/s    │ 340 MB/s      │ 556.5 MB/s    │ 549.5 MB/s    │         │
+│  │     ╰─ 1048576  1.863 ms      │ 2.265 ms      │ 1.893 ms      │ 1.894 ms      │ 10000   │ 10000
+│  │                 562.7 MB/s    │ 462.9 MB/s    │ 553.6 MB/s    │ 553.3 MB/s    │         │
+│  ╰─ sha                          │               │               │               │         │
+│     ├─ sha1                      │               │               │               │         │
+│     │  ├─ 4096     2.135 µs      │ 3.819 µs      │ 2.16 µs       │ 2.18 µs       │ 10000   │ 2560000
+│     │  │           1.917 GB/s    │ 1.072 GB/s    │ 1.895 GB/s    │ 1.878 GB/s    │         │
+│     │  ├─ 16384    8.389 µs      │ 13.41 µs      │ 8.515 µs      │ 8.592 µs      │ 10000   │ 640000
+│     │  │           1.953 GB/s    │ 1.221 GB/s    │ 1.923 GB/s    │ 1.906 GB/s    │         │
+│     │  ├─ 65536    33.57 µs      │ 49.3 µs       │ 33.88 µs      │ 34.18 µs      │ 10000   │ 160000
+│     │  │           1.951 GB/s    │ 1.329 GB/s    │ 1.934 GB/s    │ 1.917 GB/s    │         │
+│     │  ╰─ 1048576  536 µs        │ 646.5 µs      │ 542.9 µs      │ 547.9 µs      │ 10000   │ 10000
+│     │              1.956 GB/s    │ 1.621 GB/s    │ 1.931 GB/s    │ 1.913 GB/s    │         │
+│     ├─ sha2_256                  │               │               │               │         │
+│     │  ├─ 4096     1.994 µs      │ 3.258 µs      │ 2.02 µs       │ 2.038 µs      │ 10000   │ 2560000
+│     │  │           2.053 GB/s    │ 1.257 GB/s    │ 2.026 GB/s    │ 2.008 GB/s    │         │
+│     │  ├─ 16384    7.86 µs       │ 11.67 µs      │ 7.956 µs      │ 8.033 µs      │ 10000   │ 640000
+│     │  │           2.084 GB/s    │ 1.403 GB/s    │ 2.059 GB/s    │ 2.039 GB/s    │         │
+│     │  ├─ 65536    31.29 µs      │ 36.76 µs      │ 31.83 µs      │ 32.05 µs      │ 10000   │ 160000
+│     │  │           2.094 GB/s    │ 1.782 GB/s    │ 2.058 GB/s    │ 2.044 GB/s    │         │
+│     │  ╰─ 1048576  500.1 µs      │ 708.1 µs      │ 509.8 µs      │ 513.1 µs      │ 10000   │ 10000
+│     │              2.096 GB/s    │ 1.48 GB/s     │ 2.056 GB/s    │ 2.043 GB/s    │         │
+│     ├─ sha2_384                  │               │               │               │         │
+│     │  ├─ 4096     8.144 µs      │ 15.6 µs       │ 8.263 µs      │ 8.326 µs      │ 10000   │ 640000
+│     │  │           502.9 MB/s    │ 262.4 MB/s    │ 495.6 MB/s    │ 491.9 MB/s    │         │
+│     │  ├─ 16384    28.41 µs      │ 44.87 µs      │ 32.27 µs      │ 32.59 µs      │ 10000   │ 160000
+│     │  │           576.6 MB/s    │ 365.1 MB/s    │ 507.5 MB/s    │ 502.7 MB/s    │         │
+│     │  ├─ 65536    126.4 µs      │ 177.2 µs      │ 128.1 µs      │ 129.1 µs      │ 10000   │ 40000
+│     │  │           518.3 MB/s    │ 369.7 MB/s    │ 511.5 MB/s    │ 507.4 MB/s    │         │
+│     │  ╰─ 1048576  2.015 ms      │ 2.333 ms      │ 2.052 ms      │ 2.052 ms      │ 10000   │ 10000
+│     │              520.3 MB/s    │ 449.2 MB/s    │ 510.8 MB/s    │ 510.8 MB/s    │         │
+│     ├─ sha2_512                  │               │               │               │         │
+│     │  ├─ 4096     8.124 µs      │ 11.3 µs       │ 8.266 µs      │ 8.36 µs       │ 10000   │ 640000
+│     │  │           504.1 MB/s    │ 362.2 MB/s    │ 495.4 MB/s    │ 489.9 MB/s    │         │
+│     │  ├─ 16384    31.7 µs       │ 49.96 µs      │ 32.27 µs      │ 32.68 µs      │ 10000   │ 160000
+│     │  │           516.7 MB/s    │ 327.9 MB/s    │ 507.6 MB/s    │ 501.2 MB/s    │         │
+│     │  ├─ 65536    126.2 µs      │ 153.7 µs      │ 128.1 µs      │ 129.7 µs      │ 10000   │ 40000
+│     │  │           519 MB/s      │ 426.3 MB/s    │ 511.4 MB/s    │ 505.1 MB/s    │         │
+│     │  ╰─ 1048576  2.012 ms      │ 2.49 ms       │ 2.051 ms      │ 2.051 ms      │ 10000   │ 10000
+│     │              521 MB/s      │ 421 MB/s      │ 511.1 MB/s    │ 511 MB/s      │         │
+│     ├─ sha3_256                  │               │               │               │         │
+│     │  ├─ 4096     9.026 µs      │ 13.9 µs       │ 9.275 µs      │ 9.34 µs       │ 10000   │ 640000
+│     │  │           453.7 MB/s    │ 294.4 MB/s    │ 441.6 MB/s    │ 438.5 MB/s    │         │
+│     │  ├─ 16384    35.11 µs      │ 64.52 µs      │ 35.67 µs      │ 35.87 µs      │ 10000   │ 160000
+│     │  │           466.5 MB/s    │ 253.9 MB/s    │ 459.1 MB/s    │ 456.7 MB/s    │         │
+│     │  ├─ 65536    139.2 µs      │ 251 µs        │ 141.6 µs      │ 142.7 µs      │ 10000   │ 40000
+│     │  │           470.7 MB/s    │ 261 MB/s      │ 462.6 MB/s    │ 459 MB/s      │         │
+│     │  ╰─ 1048576  2.235 ms      │ 2.666 ms      │ 2.268 ms      │ 2.271 ms      │ 10000   │ 10000
+│     │              469 MB/s      │ 393.3 MB/s    │ 462.2 MB/s    │ 461.6 MB/s    │         │
+│     ├─ sha3_384                  │               │               │               │         │
+│     │  ├─ 4096     11.6 µs       │ 27.22 µs      │ 11.77 µs      │ 11.88 µs      │ 10000   │ 320000
+│     │  │           352.8 MB/s    │ 150.4 MB/s    │ 347.8 MB/s    │ 344.5 MB/s    │         │
+│     │  ├─ 16384    45.71 µs      │ 105.4 µs      │ 46.77 µs      │ 47.1 µs       │ 10000   │ 80000
+│     │  │           358.4 MB/s    │ 155.3 MB/s    │ 350.2 MB/s    │ 347.8 MB/s    │         │
+│     │  ├─ 65536    182.3 µs      │ 231.2 µs      │ 185.2 µs      │ 187.2 µs      │ 10000   │ 20000
+│     │  │           359.4 MB/s    │ 283.4 MB/s    │ 353.6 MB/s    │ 350 MB/s      │         │
+│     │  ╰─ 1048576  2.915 ms      │ 3.896 ms      │ 2.961 ms      │ 2.968 ms      │ 10000   │ 10000
+│     │              359.6 MB/s    │ 269.1 MB/s    │ 354.1 MB/s    │ 353.2 MB/s    │         │
+│     ╰─ sha3_512                  │               │               │               │         │
+│        ├─ 4096     16.38 µs      │ 24.46 µs      │ 16.74 µs      │ 16.85 µs      │ 10000   │ 320000
+│        │           250 MB/s      │ 167.3 MB/s    │ 244.5 MB/s    │ 243 MB/s      │         │
+│        ├─ 16384    65.77 µs      │ 75.67 µs      │ 66.8 µs       │ 67.2 µs       │ 10000   │ 80000
+│        │           249.1 MB/s    │ 216.4 MB/s    │ 245.2 MB/s    │ 243.7 MB/s    │         │
+│        ├─ 65536    262.5 µs      │ 410.6 µs      │ 267.3 µs      │ 269.2 µs      │ 10000   │ 20000
+│        │           249.6 MB/s    │ 159.5 MB/s    │ 245 MB/s      │ 243.4 MB/s    │         │
+│        ╰─ 1048576  4.218 ms      │ 6.898 ms      │ 4.289 ms      │ 4.294 ms      │ 10000   │ 10000
+│                    248.5 MB/s    │ 151.9 MB/s    │ 244.4 MB/s    │ 244.1 MB/s    │         │
+╰─ non_crypto                      │               │               │               │         │
+   ├─ adler                        │               │               │               │         │
+   │  ├─ 4096        653.3 ns      │ 1.356 µs      │ 668.3 ns      │ 672.9 ns      │ 10000   │ 5120000
+   │  │              6.268 GB/s    │ 3.018 GB/s    │ 6.128 GB/s    │ 6.086 GB/s    │         │
+   │  ├─ 16384       2.577 µs      │ 3.03 µs       │ 2.624 µs      │ 2.638 µs      │ 10000   │ 1280000
+   │  │              6.357 GB/s    │ 5.407 GB/s    │ 6.242 GB/s    │ 6.21 GB/s     │         │
+   │  ├─ 65536       12.31 µs      │ 27.16 µs      │ 12.73 µs      │ 12.85 µs      │ 10000   │ 320000
+   │  │              5.321 GB/s    │ 2.412 GB/s    │ 5.146 GB/s    │ 5.099 GB/s    │         │
+   │  ╰─ 1048576     217.8 µs      │ 397.6 µs      │ 223 µs        │ 224.1 µs      │ 10000   │ 20000
+   │                 4.813 GB/s    │ 2.636 GB/s    │ 4.7 GB/s      │ 4.677 GB/s    │         │
+   ╰─ crc                          │               │               │               │         │
+      ├─ 4096        253.3 ns      │ 284.7 ns      │ 259 ns        │ 259.4 ns      │ 10000   │ 20480000
+      │              16.16 GB/s    │ 14.38 GB/s    │ 15.81 GB/s    │ 15.78 GB/s    │         │
+      ├─ 16384       989.5 ns      │ 1.603 µs      │ 1.007 µs      │ 1.012 µs      │ 10000   │ 5120000
+      │              16.55 GB/s    │ 10.21 GB/s    │ 16.25 GB/s    │ 16.17 GB/s    │         │
+      ├─ 65536       3.918 µs      │ 5.189 µs      │ 3.984 µs      │ 4.012 µs      │ 10000   │ 1280000
+      │              16.72 GB/s    │ 12.62 GB/s    │ 16.44 GB/s    │ 16.33 GB/s    │         │
+      ╰─ 1048576     62.83 µs      │ 100.5 µs      │ 63.75 µs      │ 64.22 µs      │ 10000   │ 80000
+                     16.68 GB/s    │ 10.42 GB/s    │ 16.44 GB/s    │ 16.32 GB/s    │         │
 ```
 
 </details>
