@@ -200,7 +200,8 @@ checksums            fastest       │ slowest       │ median        │ mean 
 
 ### AMD Ryzen 7 5700G (x86_64-pc-windows-msvc)
 
-> [!NOTE]: This is running without many hardware accelerations enabled, as these were not compiling on windows
+> [!NOTE]
+> This is running without many hardware accelerations enabled, as these were not compiling on windows
 
 ```
 blake3_mt - 27.2 GB/s
