@@ -24,9 +24,11 @@ I've tried to use the most efficient checksum/hash function implementation in ea
 
 The checksum algorithms are benchmarked on pages of size 4KiB, 16KiB, 64KiB and 1MiB.
 
-> Note: The larger the page size and the smaller the checksum output, the more greater the chance of collisions. I would advice against using a 32bit checksum on >16KiB inputs.
+> [!INFO]
+> The larger the page size and the smaller the checksum output, the more greater the chance of collisions. I would advice against using a 32bit checksum on >16KiB inputs.
 
-> Note: Some of these checksums are not cryptographically secure.
+> [!WARN]
+> Some of these checksums are not cryptographically secure.
 
 ## Summary
 
