@@ -17,11 +17,12 @@ const LARGE_PAGE: &[u8; 1 << 20] = &{
 macro_rules! bench {
     ($($func_name:ident => $func:expr;)*) => {
         $(
-            #[divan::bench(consts = crate::SIZES)]
-            fn $func_name<const N: usize>(bencher: divan::Bencher) {
+            #[divan::bench(args = crate::SIZES)]
+            fn $func_name(bencher: divan::Bencher, n: usize) {
+                let slice = divan::black_box(&crate::LARGE_PAGE[..n]);
                 bencher
-                    .counter(divan::counter::BytesCount::new(N))
-                    .bench(|| ($func)(&divan::black_box(crate::LARGE_PAGE)[..N]))
+                    .counter(divan::counter::BytesCount::new(n))
+                    .bench(|| $func(slice))
             }
         )*
     };
