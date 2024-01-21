@@ -19,9 +19,10 @@ macro_rules! bench {
         $(
             #[divan::bench(args = crate::SIZES)]
             fn $func_name(bencher: divan::Bencher, n: usize) {
+                let slice = divan::black_box(&crate::LARGE_PAGE[..n]);
                 bencher
                     .counter(divan::counter::BytesCount::new(n))
-                    .bench(|| ($func)(&divan::black_box(crate::LARGE_PAGE)[..n]))
+                    .bench(|| $func(slice))
             }
         )*
     };
